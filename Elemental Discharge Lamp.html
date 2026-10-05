@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Elemental Gas Discharge Lamp — Energy States</title>
+<style>
+:root{--bg:#f1f5f9;--panel:#fff;--txt:#0f172a;--mut:#64748b;--line:#cbd5e1;--acc:#0284c7;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1220;--panel:#141d2f;--txt:#e2e8f0;--mut:#94a3b8;--line:#2a374f;--acc:#38bdf8}}
+:root[data-theme="dark"]{--bg:#0b1220;--panel:#141d2f;--txt:#e2e8f0;--mut:#94a3b8;--line:#2a374f;--acc:#38bdf8}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{padding:14px 18px 4px}h1{margin:0;font-size:20px}header p{margin:2px 0 0;color:var(--mut);font-size:13px}
+.wrap{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:12px;padding:12px 18px 18px;max-width:1400px;margin:auto}
+@media(max-width:980px){.wrap{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+.card h2{margin:0 0 8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+canvas{width:100%;height:auto;display:block;border-radius:8px;background:#0a101e}
+.col{display:flex;flex-direction:column;gap:12px;min-width:0}
+.ctl{margin-bottom:12px}.ctl label{display:flex;justify-content:space-between;font-weight:600;margin-bottom:4px}
+.ctl output{color:var(--acc);font-variant-numeric:tabular-nums}
+input[type=range],select,input[type=text],textarea{width:100%}
+input[type=range]{accent-color:var(--acc)}
+select,input[type=text],textarea{background:var(--bg);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font:inherit}
+textarea{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.45;resize:vertical;min-height:150px}
+button{background:var(--acc);color:#fff;border:0;border-radius:8px;padding:7px 12px;font-weight:600;cursor:pointer}
+button.secondary{background:transparent;color:var(--txt);border:1px solid var(--line)}
+.stats{display:flex;gap:14px;color:var(--mut);font-size:12px;margin-top:6px;flex-wrap:wrap}
+.mix{display:flex;gap:14px;align-items:center;margin-top:10px}
+.sw{width:120px;height:64px;border-radius:10px;border:1px solid var(--line);background:#000;flex:none;transition:background .15s,box-shadow .15s}
+.mix small,.hint{color:var(--mut);display:block}
+.hint{font-size:11px;margin-top:7px}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:-1px}
+.row{display:flex;gap:8px;align-items:center}.row>*{min-width:0}
+.badge{display:inline-block;padding:2px 7px;border-radius:999px;background:rgba(2,132,199,.12);color:var(--acc);font-size:11px;font-weight:700}
+.small{font-size:11px}
+.source{border-top:1px solid var(--line);margin-top:10px;padding-top:9px}
+.state-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:6px}
+#stateMeta{color:var(--mut);font-size:11px}
+</style></head><body>
+<header><h1 id="title">Hydrogen Discharge Lamp — Multiple Atoms</h1>
+<p id="subtitle">Electrons fired from the anode (left) excite neutral gas atoms, which then emit photons as they relax.</p></header>
+
+<div class="wrap">
+<div class="col">
+  <div class="card"><h2 id="chTitle">Gas Chamber</h2><canvas id="ch" width="860" height="400"></canvas>
+    <div class="stats">
+      <span>Free electron KE: <b id="sKE">0.0</b> eV</span>
+      <span>Electrons in flight: <b id="sE">0</b></span>
+      <span>Excited atoms: <b id="sX">0</b></span>
+      <span>Photons emitted: <b id="sP">0</b></span>
+    </div>
+    <div class="legend"><span><i style="background:#60a5fa"></i>free electron</span><span><i style="background:#facc15"></i>atomic electron</span><span><i style="background:#a855f7"></i>UV (dotted)</span><span><i style="background:#f87171"></i>IR (dashed)</span><span>visible = true colour</span></div>
+  </div>
+
+  <div class="card"><h2>Spectrometer — photons reaching the screen edge</h2><canvas id="sp" width="860" height="220"></canvas>
+    <div class="mix"><div id="mixSw" class="sw"></div><div><b>Combined Light Colour</b>
+      <div id="mixTx">No visible photons yet</div><small id="mixDt">Visible lines are weighted by simulated photon count. UV and IR are shown but excluded from the color mix.</small>
+    </div></div>
+    <div class="stats"><button id="clr">Clear spectrum</button></div>
+  </div>
+</div>
+
+<div class="col">
+  <div class="card"><h2>Gas Selection</h2>
+    <div class="ctl"><label for="gasSel">Element / dataset</label>
+      <select id="gasSel">
+        <option value="H">Hydrogen (H)</option>
+        <option value="He">Helium (He)</option>
+        <option value="Ne">Neon (Ne)</option>
+        <option value="Ar">Argon (Ar)</option>
+        <option value="custom">Custom energy-state set</option>
+      </select>
+    </div>
+    <div class="ctl"><label for="gasName">Custom name <output id="gasIonOut"></output></label><input id="gasName" type="text" value="Custom gas" placeholder="e.g. Krypton"></div>
+  </div>
+
+  <div class="card"><h2>Controls</h2>
+    <div class="ctl"><label for="nA">Atom Count <output id="oA"></output></label><input id="nA" type="range" min="1" max="30" step="1" value="12"></div>
+    <div class="ctl"><label for="vV">Applied Voltage <output id="oV"></output></label><input id="vV" type="range" min="0" max="40" step="0.1" value="20"></div>
+    <div class="ctl"><label for="rF">Electron Firing Rate <output id="oR"></output></label><input id="rF" type="range" min="0" max="20" step="0.5" value="4"></div>
+  </div>
+
+  <div class="card"><h2>Energy States</h2>
+    <div class="state-head"><span id="stateMeta"></span><span class="badge">eV above ground</span></div>
+    <textarea id="stateInput" spellcheck="false"></textarea>
+    <div class="row" style="margin-top:8px"><button id="applyStates">Apply energy states</button><button id="resetStates" class="secondary">Load selected default</button></div>
+    <div class="hint">Format: <code>label | energy_eV</code>. Ground must be 0 eV. One state per line. Values are excitation energies of the neutral atom relative to its ground state.</div>
+    <div class="source small"><b>Data note:</b> The built-in H/He/Ne/Ar levels below are curated from NIST atomic-energy data. The simulator still simplifies transition probabilities and selection rules; the entered energy differences determine the photon wavelengths.</div>
+  </div>
+
+  <div class="card"><h2 id="edTitle">Energy-Level Diagram</h2><canvas id="ed" width="320" height="360"></canvas>
+    <div class="stats"><span>Vertical position is linearly proportional to energy above the ground state.</span><span id="ionization"></span></div>
+  </div>
+</div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id),rnd=(a,b)=>a+Math.random()*(b-a);
+const HC=1239.841984; // eV·nm
+const CM_PER_EV=8065.544005;
+
+const ELEMENTS={
+  H:{
+    name:'Hydrogen',symbol:'H',ionization:13.5984345997,
+    note:'NIST ASD excitation energies: 1s→np',
+    states:[
+      ['1s',0],
+      ['2p',10.1988],
+      ['3p',12.0875],
+      ['4p',12.7485],
+      ['5p',13.0545]
+    ]
+  },
+  He:{
+    name:'Helium',symbol:'He',ionization:24.587389011,
+    note:'NIST Handbook neutral He I levels; selected low-lying terms',
+    states:[
+      ['1s² ¹S₀',0],
+      ['1s2s ³S₁',159855.9745/CM_PER_EV],
+      ['1s2s ¹S₀',166277.4403/CM_PER_EV],
+      ['1s2p ³P°',169086.7666/CM_PER_EV],
+      ['1s2p ¹P°',171134.8970/CM_PER_EV],
+      ['1s3s ³S₁',183236.7918/CM_PER_EV],
+      ['1s3p ³P°',185564.5620/CM_PER_EV],
+      ['1s3p ¹P°',186209.3651/CM_PER_EV],
+      ['1s4p ¹P°',191492.7120/CM_PER_EV]
+    ]
+  },
+  Ne:{
+    name:'Neon',symbol:'Ne',ionization:21.564541,
+    note:'NIST Handbook neutral Ne I levels; selected 3s/3p states',
+    states:[
+      ['2p⁶ ¹S₀',0],
+      ['2p⁵3s ²[3/2]°₂',134041.8400/CM_PER_EV],
+      ['2p⁵3s ²[3/2]°₁',134459.2871/CM_PER_EV],
+      ['2p⁵3p ²[1/2]₁',148257.7898/CM_PER_EV],
+      ['2p⁵3p ²[5/2]₃',149657.0393/CM_PER_EV],
+      ['2p⁵3p ²[3/2]₁',150121.5922/CM_PER_EV]
+    ]
+  },
+  Ar:{
+    name:'Argon',symbol:'Ar',ionization:15.759610,
+    note:'NIST Handbook neutral Ar I levels; selected 4s/4p states',
+    states:[
+      ['3p⁶ ¹S₀',0],
+      ['3p⁵4s ²[3/2]°₂',93143.7653/CM_PER_EV],
+      ['3p⁵4s ²[3/2]°₁',93750.6031/CM_PER_EV],
+      ['3p⁵4s ²[1/2]°₀',94553.6705/CM_PER_EV],
+      ['3p⁵4p ²[1/2]₁',104102.1043/CM_PER_EV],
+      ['3p⁵4p ²[5/2]₃',105462.7649/CM_PER_EV],
+      ['3p⁵4p ²[3/2]₁',106087.2651/CM_PER_EV]
+    ]
+  }
+};
+
+let activeKey='H', gas=JSON.parse(JSON.stringify(ELEMENTS.H));
+let levels=[],T=[],atoms=[],els=[],phs=[],acc=0,nPh=0;
+const par={n:12,V:20,rate:4};
+
+const C=$('ch'),X=C.getContext('2d'),W=C.width,H=C.height,PL=44,AR=24;
+const S=$('sp').getContext('2d'),D=$('ed').getContext('2d');
+
+function vis(w){
+  let r,g,b;
+  if(w<440){r=(440-w)/60;g=0;b=1}
+  else if(w<490){r=0;g=(w-440)/50;b=1}
+  else if(w<510){r=0;g=1;b=(510-w)/20}
+  else if(w<580){r=(w-510)/70;g=1;b=0}
+  else if(w<645){r=1;g=(645-w)/65;b=0}
+  else{r=1;g=0;b=0}
+  return`rgb(${r*255|0},${g*255|0},${b*255|0})`;
+}
+const colOf=nm=>nm<380?'#a855f7':nm>750?'#f87171':vis(nm);
+
+function rebuildTransitions(){
+  levels=gas.states.map((s,i)=>({i,label:s[0],E:+s[1]}))
+    .filter(s=>Number.isFinite(s.E))
+    .sort((a,b)=>a.E-b.E);
+  if(!levels.length || Math.abs(levels[0].E)>1e-9) throw new Error('Energy states must include a 0 eV ground state.');
+  levels[0].E=0;
+  T=[];
+  for(let a=1;a<levels.length;a++)for(let b=0;b<a;b++){
+    const e=levels[a].E-levels[b].E;
+    if(e<=0) continue;
+    const nm=HC/e;
+    T.push({a,b,e,nm,c:0,col:colOf(nm),flash:0});
+  }
+  T.sort((p,q)=>p.nm-q.nm);
+}
+
+function stateText(){return levels.map(s=>`${s.label} | ${s.E.toFixed(6)}`).join('\n');}
+
+function parseStateText(txt){
+  const out=[];
+  for(const raw of txt.split(/\r?\n/)){
+    const line=raw.trim();
+    if(!line || line.startsWith('#')) continue;
+    const m=line.split('|');
+    if(m.length<2) continue;
+    const label=m[0].trim();
+    const e=Number(m.slice(1).join('|').trim());
+    if(label && Number.isFinite(e)) out.push([label,e]);
+  }
+  if(out.length<2) throw new Error('Enter at least two states, including the 0 eV ground state.');
+  out.sort((a,b)=>a[1]-b[1]);
+  if(Math.abs(out[0][1])>1e-7) throw new Error('The lowest state must be exactly 0 eV.');
+  return out;
+}
+
+function mk(){return{x:rnd(PL+AR+10,W-PL-AR-10),y:rnd(AR+10,H-AR-10),vx:rnd(-1,1)*45,vy:rnd(-1,1)*45,i:0,t:0,ph:rnd(0,6.28)}}
+function setN(n){par.n=n;while(atoms.length<n)atoms.push(mk());atoms.length=n;$('oA').textContent=n}
+
+function loadGas(key){
+  activeKey=key;
+  const preset=ELEMENTS[key];
+  gas=preset?JSON.parse(JSON.stringify(preset)):{
+    name:$('gasName').value.trim()||'Custom gas',symbol:'',
+    ionization:null, note:'User-entered energy states',
+    states:[[`${$('gasName').value.trim()||'Ground'} ground`,0],[`${$('gasName').value.trim()||'Excited'} level`,1]]
+  };
+  $('gasName').value=preset?.name||gas.name;
+  $('title').textContent=`${gas.name} Discharge Lamp — Multiple Atoms`;
+  $('subtitle').textContent=`Electrons fired from the anode (left) excite neutral ${gas.name} atoms, which then emit photons as they relax.`;
+  $('gasIonOut').textContent=gas.ionization?`Ionization ${gas.ionization.toFixed(4)} eV`:'';
+  $('stateInput').value=(gas.states||[]).map(s=>`${s[0]} | ${Number(s[1]).toFixed(6)}`).join('\n');
+  rebuildTransitions();
+  $('stateMeta').textContent=`${levels.length} levels · ${gas.note}`;
+  $('edTitle').textContent=`${gas.name} Energy-Level Diagram`;
+  $('ionization').textContent=gas.ionization?`Neutral-atom ionization energy: ${gas.ionization.toFixed(6)} eV`: 'Ionization energy not specified';
+  atoms=[];els=[];phs=[];acc=0;nPh=0;setN(par.n);
+  $('vV').max=Math.max(40,Math.ceil((gas.ionization||25)*1.35));
+  $('vV').value=Math.min(+$('vV').value,+$('vV').max);
+  $('vV').dispatchEvent(new Event('input'));
+}
+
+function applyStates(){
+  try{
+    const parsed=parseStateText($('stateInput').value);
+    gas.states=parsed;
+    if(activeKey==='custom') gas.name=$('gasName').value.trim()||'Custom gas';
+    rebuildTransitions();
+    $('title').textContent=`${gas.name} Discharge Lamp — Multiple Atoms`;
+    $('subtitle').textContent=`Electrons fired from the anode (left) excite neutral ${gas.name} atoms, which then emit photons as they relax.`;
+    $('stateMeta').textContent=`${levels.length} levels · custom/user-entered`;
+    atoms=[];els=[];phs=[];acc=0;nPh=0;setN(par.n);
+  }catch(err){alert(err.message)}
+}
+
+$('gasSel').onchange=e=>loadGas(e.target.value);
+$('gasName').oninput=()=>{if($('gasSel').value==='custom')gas.name=$('gasName').value.trim()||'Custom gas'};
+$('applyStates').onclick=applyStates;
+$('resetStates').onclick=()=>loadGas($('gasSel').value==='custom'?'H':$('gasSel').value);
+
+$('nA').oninput=e=>setN(+e.target.value);
+$('vV').oninput=e=>{par.V=+e.target.value;$('oV').textContent=par.V.toFixed(1)+' V'};
+$('rF').oninput=e=>{par.rate=+e.target.value;$('oR').textContent=par.rate.toFixed(1)+' e⁻/s'};
+$('clr').onclick=()=>T.forEach(t=>t.c=0);
+
+loadGas('H');$('nA').dispatchEvent(new Event('input'));$('rF').dispatchEvent(new Event('input'));
+
+function step(dt){
+  acc+=par.rate*dt;
+  while(acc>=1){acc--;els.push({x:PL,y:rnd(14,H-14),ke:par.V,hit:new Set(),flash:0})}
+
+  for(const a of atoms){
+    a.vx+=rnd(-1,1)*120*dt;a.vy+=rnd(-1,1)*120*dt;
+    const s=Math.hypot(a.vx,a.vy);if(s>70){a.vx*=70/s;a.vy*=70/s}else if(s<20){a.vx*=1.1;a.vy*=1.1}
+    a.x+=a.vx*dt;a.y+=a.vy*dt;
+    if(a.x<PL+AR){a.x=PL+AR;a.vx=Math.abs(a.vx)}
+    if(a.x>W-PL-AR){a.x=W-PL-AR;a.vx=-Math.abs(a.vx)}
+    if(a.y<AR){a.y=AR;a.vy=Math.abs(a.vy)}
+    if(a.y>H-AR){a.y=H-AR;a.vy=-Math.abs(a.vy)}
+    a.ph+=dt*7/Math.pow(a.i+1,1.3);
+
+    if(a.i>0){
+      a.t-=dt;
+      if(a.t<=0){
+        const lower=levels.filter(l=>l.i<a.i);
+        if(lower.length){
+          const b=lower[Math.floor(Math.random()*lower.length)], trn=tr(a.i,b.i),ang=rnd(0,6.28);
+          if(trn){
+            phs.push({x:a.x,y:a.y,dx:Math.cos(ang),dy:Math.sin(ang),t:trn,ph:0});
+            nPh++;
+          }
+          a.i=b.i;a.t=rnd(.3,1);
+        }else{a.i=0;a.t=0}
+      }
+    }
+  }
+
+  for(let i=0;i<atoms.length;i++)for(let j=i+1;j<atoms.length;j++){
+    const p=atoms[i],q=atoms[j],dx=q.x-p.x,dy=q.y-p.y,d=Math.hypot(dx,dy);
+    if(d<AR*2&&d>0){const nx=dx/d,ny=dy/d,v=(p.vx-q.vx)*nx+(p.vy-q.vy)*ny;
+      if(v>0){p.vx-=v*nx;p.vy-=v*ny;q.vx+=v*nx;q.vy+=v*ny}
+      const o=(AR*2-d)/2;p.x-=nx*o;p.y-=ny*o;q.x+=nx*o;q.y+=ny*o}
+  }
+
+  for(const e of els){
+    e.x+=Math.max(50,90*Math.sqrt(Math.max(0,e.ke)))*dt;
+    for(const a of atoms){
+      if(e.hit.has(a))continue;
+      if(Math.hypot(a.x-e.x,a.y-e.y)<AR){
+        e.hit.add(a);
+        if(a.i===0&&e.ke>0){
+          const ok=levels.slice(1).filter(l=>l.E<=e.ke);
+          if(ok.length){
+            const w=ok.map(l=>1/Math.max(l.E,.001)),sm=w.reduce((s,v)=>s+v,0);
+            let r=Math.random()*sm,k=0;while(k<w.length-1&&r>w[k]){r-=w[k];k++}
+            const lev=ok[k],delta=lev.E;
+            if(e.ke>=delta){
+              e.ke-=delta;a.i=lev.i;a.t=rnd(.5,1.8);e.flash=.4;
+            }
+          }
+        }
+      }
+    }
+    if(e.flash>0)e.flash-=dt;
+  }
+  els=els.filter(e=>e.x<W-PL);
+  for(const p of phs){p.x+=p.dx*220*dt;p.y+=p.dy*220*dt;p.ph+=dt*40}
+  phs=phs.filter(p=>{
+    if(p.x<0||p.x>W||p.y<0||p.y>H){
+      p.t.c++;p.t.flash=1;return false
+    }return true
+  });
+}
+
+function tr(a,b){return T.find(t=>t.a===a&&t.b===b)}
+
+function plate(x,label,c){
+  X.fillStyle=c;X.fillRect(x,10,PL-16,H-20);X.fillStyle='#e2e8f0';X.font='bold 12px system-ui';X.textAlign='center';
+  X.save();X.translate(x+(PL-16)/2,H/2);X.rotate(-Math.PI/2);X.fillText(label,0,4);X.restore();
+}
+
+function drawCh(){
+  X.clearRect(0,0,W,H);X.fillStyle='#0a101e';X.fillRect(0,0,W,H);
+  X.strokeStyle='#334155';X.lineWidth=2;X.strokeRect(PL-8,4,W-2*PL+16,H-8);
+  plate(2,'ANODE (+)','#b45309');plate(W-PL+14,'CATHODE (−)','#1d4ed8');
+  for(const a of atoms){
+    const ex=a.i>0;
+    X.beginPath();X.arc(a.x,a.y,AR,0,6.283);
+    X.fillStyle=ex?`rgba(250,204,21,${.08+.04*(a.i+1)})`:'rgba(148,163,184,.14)';X.fill();
+    X.strokeStyle=ex?'#facc15':'#64748b';X.lineWidth=ex?2:1;X.stroke();
+    const ringCount=Math.min(7,levels.length);
+    for(let n=0;n<ringCount;n++){
+      X.beginPath();X.arc(a.x,a.y,3+(n+1)*3.8,0,6.283);
+      X.strokeStyle=n===a.i?'rgba(250,204,21,.55)':'rgba(148,163,184,.12)';
+      X.lineWidth=1;X.setLineDash(n===a.i?[]:[2,3]);X.stroke();
+    }
+    X.setLineDash([]);
+    const r=3+(a.i+1)*3.8;X.beginPath();X.arc(a.x+Math.cos(a.ph)*r,a.y+Math.sin(a.ph)*r,3,0,6.283);X.fillStyle='#facc15';X.fill();
+    X.beginPath();X.arc(a.x,a.y,2.5,0,6.283);X.fillStyle='#f87171';X.fill();
+  }
+  for(const e of els){
+    X.beginPath();X.arc(e.x,e.y,5,0,6.283);X.fillStyle=e.flash>0?'#fff':'#60a5fa';X.shadowColor='#60a5fa';X.shadowBlur=8;X.fill();X.shadowBlur=0;
+    X.fillStyle='#0a101e';X.fillRect(e.x-3,e.y-.5,6,1);
+  }
+  for(const p of phs){
+    const c=p.t.col,nm=p.t.nm,nx=-p.dy,ny=p.dx;
+    X.strokeStyle=c;X.lineWidth=2;X.setLineDash(nm<380?[2,4]:nm>750?[6,4]:[]);
+    X.beginPath();
+    for(let s=0;s<=24;s+=2){const o=Math.sin(s*.8-p.ph)*3,x=p.x-p.dx*s+nx*o,y=p.y-p.dy*s+ny*o;s?X.lineTo(x,y):X.moveTo(x,y)}
+    X.stroke();X.setLineDash([]);X.beginPath();X.arc(p.x,p.y,2.5,0,6.283);X.fillStyle=c;X.fill();
+  }
+}
+
+function drawSp(){
+  const w=860,h=220,m=24,sw=(w-2*m)/Math.max(1,T.length),mx=Math.max(5,...T.map(t=>t.c));
+  S.clearRect(0,0,w,h);S.fillStyle='#0a101e';S.fillRect(0,0,w,h);
+  S.strokeStyle='#334155';S.beginPath();S.moveTo(m,165);S.lineTo(w-m,165);S.stroke();
+  S.textAlign='center';
+  T.forEach((t,i)=>{
+    const x=m+sw*(i+.5),bh=t.c?Math.max(6,t.c/mx*132):0;
+    if(t.c){
+      S.strokeStyle=t.col;S.shadowColor=t.col;S.shadowBlur=t.flash>0?14:4;S.lineWidth=4;S.setLineDash(t.nm<380?[3,3]:t.nm>750?[8,4]:[]);
+      S.beginPath();S.moveTo(x,165);S.lineTo(x,165-bh);S.stroke();S.setLineDash([]);S.shadowBlur=0;
+      S.fillStyle='#cbd5e1';S.font='11px system-ui';S.fillText(t.c,x,159-bh);
+    }
+    if(t.flash>0)t.flash-=.02;
+    S.fillStyle=t.col;S.font='bold 11px system-ui';S.fillText(Number.isFinite(t.nm)?Math.round(t.nm)+' nm':'—',x,184);
+    S.fillStyle='#94a3b8';S.font='10px system-ui';S.fillText(`${levels[t.a]?.label||''}→${levels[t.b]?.label||''}`,x,201);
+  });
+  S.fillStyle='#64748b';S.textAlign='left';S.font='11px system-ui';
+  S.fillText(`${gas.name} lines ordered by wavelength (UV · visible · IR); height = simulated photon count`,m,14);
+}
+
+function updMix(){
+  let r=0,g=0,b=0,tot=0;const parts=[];
+  for(const t of T){
+    if(t.nm<380||t.nm>750||!t.c)continue;
+    const c=vis(t.nm).match(/\d+/g).map(Number);r+=c[0]*t.c;g+=c[1]*t.c;b+=c[2]*t.c;tot+=t.c;
+    parts.push(Math.round(t.nm)+' nm ×'+t.c);
+  }
+  const sw=$('mixSw');
+  if(!tot){sw.style.background='#000';sw.style.boxShadow='none';$('mixTx').textContent='No visible photons yet';return}
+  const m=Math.max(r,g,b),k=255/m,R=Math.round(r*k),G=Math.round(g*k),B=Math.round(b*k);
+  const hex='#'+[R,G,B].map(v=>v.toString(16).padStart(2,'0')).join('');
+  sw.style.background=hex;sw.style.boxShadow=`0 0 24px ${hex}`;
+  $('mixTx').textContent=`${hex.toUpperCase()} · rgb(${R}, ${G}, ${B}) · ${parts.join(', ')}`;
+}
+
+function drawEd(){
+  const w=320,h=360;
+  D.clearRect(0,0,w,h);D.fillStyle='#0a101e';D.fillRect(0,0,w,h);
+  const cnt=Array(levels.length).fill(0);atoms.forEach(a=>{if(cnt[a.i]!=null)cnt[a.i]++});
+  // True linear energy scale: equal vertical distances represent equal energy differences.
+  // For built-in elements, use the neutral-atom ionization energy as the 0→ionization span
+  // so the spacing is physically meaningful even when the highest listed state is close to it.
+  const topE=Math.max(gas.ionization||0,...levels.map(s=>s.E),1);
+  const minY=30,maxY=316;
+  const y=e=>maxY-(Math.max(0,e)/topE)*(maxY-minY);
+  D.font='10px system-ui';
+
+  // Ionization limit / continuum marker, when known.
+  if(gas.ionization){
+    const iy=y(gas.ionization);
+    D.strokeStyle='#64748b';D.lineWidth=1;D.setLineDash([4,4]);
+    D.beginPath();D.moveTo(90,iy);D.lineTo(230,iy);D.stroke();D.setLineDash([]);
+    D.fillStyle='#94a3b8';D.textAlign='left';D.fillText(`ionization ${gas.ionization.toFixed(4)} eV`,236,iy+4);
+  }
+
+  for(let n=0;n<levels.length;n++){
+    const lev=levels[n],yy=y(lev.E);
+    D.strokeStyle=cnt[n]?'#facc15':'#475569';D.lineWidth=cnt[n]?3:2;D.beginPath();D.moveTo(90,yy);D.lineTo(230,yy);D.stroke();
+    D.fillStyle='#e2e8f0';D.textAlign='right';D.fillText(`${n+1}.`,82,yy+4);
+    D.fillStyle='#cbd5e1';D.textAlign='left';D.fillText(`${lev.label}`,236,yy+3);
+    D.fillStyle='#94a3b8';D.fillText(`${lev.E.toFixed(4)} eV`,236,yy+15);
+    for(let k=0;k<cnt[n];k++){
+      D.beginPath();D.arc(98+(k%15)*8,yy-7-Math.floor(k/15)*8,3,0,6.283);D.fillStyle='#facc15';D.fill();
+    }
+  }
+  D.fillStyle='#64748b';D.textAlign='left';D.fillText('0 eV = neutral ground state',90,h-8);
+  $('sX').textContent=atoms.filter(a=>a.i>0).length;
+}
+
+let last=performance.now();
+function loop(now){
+  const dt=Math.min(.05,(now-last)/1000);last=now;
+  step(dt);drawCh();drawSp();drawEd();updMix();
+  $('sKE').textContent=els.length?els[0].ke.toFixed(1):par.V.toFixed(1);
+  $('sE').textContent=els.length;$('sP').textContent=nPh;
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script></body></html>
